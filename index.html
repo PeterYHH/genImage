@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>即時圖片生成器</title>
+  <!-- 載入 Google 字型 -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      width: 90%;
+      max-width: 800px; /* 調整最大寬度為 800px */
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    #paramExplanation {
+      background: #eef6fd;
+      border: 1px solid #c0d6ea;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #paramExplanation ul {
+      list-style: disc;
+      margin: 0 0 10px 20px;
+      padding: 0;
+    }
+    /* 將輸入欄位依列排列 */
+    #controls .row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    /* 讓單一欄位佔滿整行 */
+    .full-width {
+      flex: 1 1 100%;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      margin-bottom: 5px;
+      color: #555;
+      font-weight: 600;
+    }
+    input[type="number"],
+    input[type="text"],
+    input[type="color"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    /* 交換寬高按鈕 */
+    #swapButton {
+      padding: 10px 15px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      background-color: #0c4767; /* 按鈕顏色 */
+      color: #fff;
+      border-radius: 4px;
+    }
+    #colorInfo {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #canvasContainer {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      overflow: hidden;
+      text-align: center;
+      padding: 10px;
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+    #canvasContainer p {
+      margin: 5px 0 0;
+      font-size: 0.85rem;
+      color: #888;
+    }
+    /* 複製剪貼簿按鈕 */
+    #clipboardButtons {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #clipboardButtons button {
+      padding: 10px 15px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      background-color: #0c4767;
+      color: #fff;
+      border-radius: 4px;
+      margin: 5px;
+    }
+    @media (max-width: 480px) {
+      #controls .row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>即時圖片生成器</h1>
+    
+    <!-- 網址參數說明區塊 -->
+    <div id="paramExplanation">
+      <h2>網址參數說明</h2>
+      <p>您可以在網址中加入以下參數來自動生成圖片：</p>
+      <ul>
+        <li><strong>width</strong> 或 <strong>長</strong>：圖片寬度 (像素)</li>
+        <li><strong>height</strong> 或 <strong>高</strong>：圖片高度 (像素)</li>
+        <li><strong>color</strong>：背景顏色 (格式：rrggbb，不需要加 #，程式會自動補上)；預設為 <code>7FC29B</code></li>
+        <li><strong>text</strong>：顯示在圖片上的文字</li>
+        <li><strong>download</strong>：若設定為 true 或 1，頁面載入後將自動下載圖片 (預設不自動下載)</li>
+      </ul>
+      <p>例如：<code>?width=500&amp;height=300&amp;color=7FC29B&amp;text=Hello&amp;download=true</code></p>
+    </div>
+    
+    <!-- 控制區 -->
+    <div id="controls">
+      <!-- 第一列：寬度與高度 -->
+      <div class="row">
+        <div class="input-group">
+          <label for="width">寬度 (px):</label>
+          <input type="number" id="width" name="width" value="300" min="1">
+        </div>
+        <div class="input-group">
+          <label for="height">高度 (px):</label>
+          <input type="number" id="height" name="height" value="200" min="1">
+        </div>
+      </div>
+      <!-- 第二列：交換寬高按鈕 -->
+      <div class="row">
+        <div class="input-group full-width">
+          <button id="swapButton">交換寬高</button>
+        </div>
+      </div>
+      <!-- 第三列：背景顏色 -->
+      <div class="row">
+        <div class="input-group full-width">
+          <label for="color">背景顏色:</label>
+          <input type="color" id="color" name="color" value="#7FC29B">
+        </div>
+      </div>
+      <!-- 第四列：文字內容 -->
+      <div class="row">
+        <div class="input-group full-width">
+          <label for="text">文字內容:</label>
+          <input type="text" id="text" name="text" placeholder="請輸入文字" autocomplete="off">
+        </div>
+      </div>
+    </div>
+    
+    <!-- 顯示已選擇的顏色資訊 -->
+    <div id="colorInfo">
+      已選擇顏色：<span id="hexValue">#7FC29B</span> / <span id="rgbValue">rgb(127, 194, 155)</span>
+    </div>
+    
+    <!-- 畫布容器，點擊下載圖片 -->
+    <div id="canvasContainer">
+      <canvas id="myCanvas"></canvas>
+      <p>點擊圖片下載</p>
+    </div>
+    
+    <!-- 複製剪貼簿按鈕 -->
+    <div id="clipboardButtons">
+      <button id="copyImageButton">複製圖片至剪貼簿</button>
+      <button id="copyBase64Button">複製 Base64 至剪貼簿</button>
+    </div>
+  </div>
+  
+  <script>
+    const widthInput = document.getElementById('width');
+    const heightInput = document.getElementById('height');
+    const colorInput = document.getElementById('color');
+    const textInput = document.getElementById('text');
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+    const swapButton = document.getElementById('swapButton');
+    const copyImageButton = document.getElementById('copyImageButton');
+    const copyBase64Button = document.getElementById('copyBase64Button');
+    
+    // 自動下載旗標，預設為 false
+    let autoDownload = false;
+
+    // 將 hex 轉換成 rgb 格式
+    function hexToRgb(hex) {
+      hex = hex.replace('#', '');
+      const bigint = parseInt(hex, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return "rgb(" + r + ", " + g + ", " + b + ")";
+    }
+
+    // 更新畫布內容
+    function updateCanvas() {
+      const width = parseInt(widthInput.value) || 300;
+      const height = parseInt(heightInput.value) || 200;
+      // 使用預設背景顏色 #7FC29B
+      const color = colorInput.value || '#7FC29B';
+      const text = textInput.value;
+
+      // 設定 canvas 尺寸
+      canvas.width = width;
+      canvas.height = height;
+      
+      // 填滿背景顏色
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, width, height);
+
+      // 設定文字樣式
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "20px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // 若有輸入文字，則在圖片中央繪製
+      if (text.trim() !== "") {
+        ctx.fillText(text, width / 2, height / 2);
+      }
+      
+      // 更新已選擇的顏色資訊
+      updateColorInfo();
+    }
+
+    // 更新顏色資訊顯示
+    function updateColorInfo() {
+      const hex = colorInput.value;
+      document.getElementById('hexValue').textContent = hex;
+      document.getElementById('rgbValue').textContent = hexToRgb(hex);
+    }
+
+    // 點擊 canvas 自動下載圖片，檔名含「寬度x高度_時間戳記」
+    canvas.addEventListener("click", function() {
+      downloadImage();
+    });
+
+    // 下載圖片函式
+    function downloadImage() {
+      const dataURL = canvas.toDataURL("image/png");
+      const timestamp = Date.now();
+      const fileName = `${widthInput.value}x${heightInput.value}_${timestamp}.png`;
+      const a = document.createElement("a");
+      a.href = dataURL;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // 複製圖片到剪貼簿
+    function copyImageToClipboard() {
+      canvas.toBlob(function(blob) {
+        if (!blob) {
+          alert("無法取得圖片資料！");
+          return;
+        }
+        const item = new ClipboardItem({ "image/png": blob });
+        navigator.clipboard.write([item]).then(() => {
+          alert("圖片已複製到剪貼簿！");
+        }).catch((error) => {
+          console.error("複製圖片失敗：", error);
+          alert("複製圖片失敗！");
+        });
+      });
+    }
+
+    // 複製 Base64 字串到剪貼簿
+    function copyBase64ToClipboard() {
+      const base64 = canvas.toDataURL("image/png");
+      navigator.clipboard.writeText(base64).then(() => {
+        alert("Base64 已複製到剪貼簿！");
+      }).catch((error) => {
+        console.error("複製 Base64 失敗：", error);
+        alert("複製 Base64 失敗！");
+      });
+    }
+
+    // 設定按鈕事件
+    copyImageButton.addEventListener('click', copyImageToClipboard);
+    copyBase64Button.addEventListener('click', copyBase64ToClipboard);
+
+    // 讀取網址參數，並自動補上 color 前的 #
+    function loadParams() {
+      const params = new URLSearchParams(window.location.search);
+      
+      // 寬度參數：優先使用 width，再使用中文「長」
+      if (params.has('width')) {
+        widthInput.value = params.get('width');
+      } else if (params.has('長')) {
+        widthInput.value = params.get('長');
+      }
+      
+      // 高度參數：優先使用 height，再使用中文「高」
+      if (params.has('height')) {
+        heightInput.value = params.get('height');
+      } else if (params.has('高')) {
+        heightInput.value = params.get('高');
+      }
+      
+      // 背景顏色參數：若沒有 "#" 則自動補上
+      if (params.has('color')) {
+        let colorVal = params.get('color');
+        if (!colorVal.startsWith('#')) {
+          colorVal = '#' + colorVal;
+        }
+        colorInput.value = colorVal;
+      }
+      
+      // 文字參數
+      if (params.has('text')) {
+        textInput.value = params.get('text');
+      }
+      
+      // 自動下載參數
+      if (params.has('download')) {
+        const downloadParam = params.get('download').toLowerCase();
+        if (downloadParam === "true" || downloadParam === "1") {
+          autoDownload = true;
+        }
+      }
+    }
+
+    // 交換寬高按鈕事件
+    swapButton.addEventListener("click", function() {
+      const temp = widthInput.value;
+      widthInput.value = heightInput.value;
+      heightInput.value = temp;
+      updateCanvas();
+    });
+
+    // 頁面載入後讀取參數與更新畫布，若設定自動下載則觸發下載
+    window.addEventListener('DOMContentLoaded', () => {
+      loadParams();
+      updateCanvas();
+      if (autoDownload) {
+        setTimeout(downloadImage, 100);
+      }
+    });
+
+    // 監聽輸入事件即時更新畫布
+    [widthInput, heightInput, colorInput, textInput].forEach(input => {
+      input.addEventListener('input', updateCanvas);
+    });
+  </script>
+</body>
+</html>
